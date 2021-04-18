@@ -4,23 +4,24 @@ import akka.actor.{ActorSystem, Props}
 import duckjump.Physics.{Accel, Pos, Vel}
 import duckjump.actors.Duck
 import org.scalajs.dom
-import org.scalajs.dom.document
+import org.scalajs.dom.{document, window}
 
+import scala.concurrent.ExecutionContextExecutor
 import scala.concurrent.duration.DurationInt
 
 object Main {
 
   implicit val system: ActorSystem = ActorSystem()
 
-  implicit val executor = system.dispatcher
+  implicit val executor: ExecutionContextExecutor = system.dispatcher
 
   private val renderEvery = 100.millis
 
-  val ground = -300
+  val ground: Int = -(window.innerHeight.toInt) + Duck.Height
 
   def main(args: Array[String]): Unit = {
 
-    val duck = system.actorOf(Props(new Duck(Duck.State(Pos(300, ground), Vel.Zero, Accel.Zero, Duck.Sprite.Idle, true))))
+    val duck = system.actorOf(Props(new Duck(Duck.State(Pos(300, ground), Vel.Zero, Accel.Zero))))
 
     document.addEventListener("DOMContentLoaded", (_: dom.Event) => {
       system.scheduler.scheduleAtFixedRate(0.millis, renderEvery, duck, Duck.Command.ReRender)

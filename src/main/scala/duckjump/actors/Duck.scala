@@ -1,8 +1,8 @@
 package duckjump.actors
 
 import akka.actor.{Actor, ActorLogging, ActorSystem}
-import duckjump.Physics.{Accel, Pos, Vec, Vel}
 import duckjump.Physics.Implicits._
+import duckjump.Physics.{Accel, Pos, Vec, Vel}
 import duckjump.{Main, Physics}
 import org.scalajs.dom.document
 import org.scalajs.dom.html.{Div, Image}
@@ -40,12 +40,13 @@ case class Duck (init: Duck.State)(implicit system: ActorSystem, executor: Execu
 
       } else {
         if (Duck.Debug) println("Duck is jumping")
-        val newAccel = (state.accel * Vec(0, 1)) + Physics.Gravity
-        reRender(state.copy(accel = newAccel, sprite = Duck.Sprite.Jumping))
+        val newAccel = (state.accel) + Physics.Gravity
+        val sprite = if (newAccel.y < 0) Duck.Sprite.Running2 else Duck.Sprite.Jumping
+        reRender(state.copy(accel = newAccel, sprite = sprite))
       }
 
     case Command.Jump =>
-      if (Duck.Debug) println("Double-Jump??")
+      jump("Duck is double-jumping")
 
     case Command.StopLeft =>
       if (state.vel.x < 0) {
@@ -60,16 +61,20 @@ case class Duck (init: Duck.State)(implicit system: ActorSystem, executor: Execu
       }
 
     case Command.GoLeft =>
-      if (state.vel.x < 0) {
+      state = state.copy(accel = state.accel.copy(x = -state.config.accel.x), sprite = sprite(), facingRight = false)
+      val runningLanding = if (state.vel.x < 0) {
         if (Duck.Debug) println("Duck will run left upon landing")
-        context become jumping(true)
-      }
+        true
+      } else false
+      context become jumping(runningLanding)
 
     case Command.GoRight =>
-      if (state.vel.x > 0) {
+      state = state.copy(accel = state.accel.copy(x = state.config.accel.x), sprite = sprite(), facingRight = true)
+      val runningLanding = if (state.vel.x > 0) {
         if (Duck.Debug) println("Duck will run right upon landing")
-        context become jumping(true)
-      }
+        true
+      } else false
+      context become jumping(runningLanding)
 
     case e =>
       throw new Exception(s"UNHANDLED COMMAND $e RECEIVED in 'goingRight' STATE")
@@ -133,7 +138,7 @@ case class Duck (init: Duck.State)(implicit system: ActorSystem, executor: Execu
   }
 
   private def jump (msg: String = ""): Unit = withLogMsg(msg) {
-    reRender(state.copy(accel = state.accel.copy(y = state.config.accel.y), sprite = Duck.Sprite.Jumping))
+    reRender(state.copy(accel = state.accel.copy(y = state.config.accel.y), vel = state.vel.copy(y = 0), sprite = Duck.Sprite.Jumping))
   }
 
   override def receive: Receive = {
@@ -213,7 +218,8 @@ object Duck {
 
   class State private (
     val pos: Pos, val vel: Vel, val accel: Accel,
-    val sprite: Duck.Sprite, val facingRight: Boolean,
+    val sprite: Duck.Sprite = Duck.Sprite.Idle,
+    val facingRight: Boolean = true,
     val config: State.Config = State.Config.default) {
 
     lazy val rendered: Div = {
@@ -255,7 +261,8 @@ object Duck {
 
     def apply (
       pos: Pos, vel: Vel, accel: Accel,
-      sprite: Duck.Sprite, facingRight: Boolean,
+      sprite: Duck.Sprite = Duck.Sprite.Idle,
+      facingRight: Boolean = true,
       config: State.Config = State.Config.default): State = {
 
       def clampSpeed (vel: Vel): Vel = {
