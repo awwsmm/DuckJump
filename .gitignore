@@ -3,6 +3,7 @@
 .idea/
 project/project
 project/target
-target/
 node_modules/
 package-lock.json
+local.html
+target
